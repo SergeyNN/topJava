@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MealServlet extends HttpServlet {
-
+//private static final LoggerWrapper LOG = LoggerWrapper.get
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         List<Meal> meals = Arrays.asList(
                 new Meal(LocalDateTime.of(2015, Month.MAY, 30, 10, 0), "Завтрак", 500),
