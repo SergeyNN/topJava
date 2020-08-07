@@ -7,9 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -40,7 +38,7 @@ public class MealsUtil {
 //                      Collectors.toMap(Meal::getDate, Meal::getCalories, Integer::sum)
                 );
         return meals.stream()
-                .filter(meal -> TimeUtil.isBetweenInclusive(meal.getTime(), startTime, endTime))
+                .filter(meal -> DateTimeUtil.isBetween(meal.getTime(), startTime, endTime))
                 .map(meal -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay))
                 .collect(Collectors.toList());
     }
@@ -51,7 +49,7 @@ public class MealsUtil {
 
         final List<MealTo> mealsTo = new ArrayList<>();
         meals.forEach(meal -> {
-            if (TimeUtil.isBetweenInclusive(meal.getTime(), startTime, endTime)) {
+            if (DateTimeUtil.isBetween(meal.getTime(), startTime, endTime)) {
                 mealsTo.add(createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay));
             }
         });
