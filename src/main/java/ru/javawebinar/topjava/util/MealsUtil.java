@@ -8,8 +8,13 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
 
 public class MealsUtil {
     public static final int DEFAULT_CALORIES_PER_DAY = 2000;
@@ -38,9 +43,8 @@ public class MealsUtil {
 //                      Collectors.toMap(Meal::getDate, Meal::getCalories, Integer::sum)
                 );
         return meals.stream()
-                .filter(meal -> DateTimeUtil.isBetween(meal.getTime(), startTime, endTime))
                 .map(meal -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay))
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
     private static List<MealTo> getFilteredByCycle(List<Meal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
@@ -69,7 +73,7 @@ public class MealsUtil {
         Meal meal = meals.pop();
         dailyCaloriesMap.merge(meal.getDate(), meal.getCalories(), Integer::sum);
         filterWithRecursion(meals, startTime, endTime, caloriesPerDay, dailyCaloriesMap, result);
-        if (TimeUtil.isBetweenInclusive(meal.getTime(), startTime, endTime)) {
+        if (DateTimeUtil.isBetween(meal.getTime(), startTime, endTime)) {
             result.add(createTo(meal, dailyCaloriesMap.get(meal.getDate()) > caloriesPerDay));
         }
     }
@@ -113,7 +117,7 @@ public class MealsUtil {
 
         meals.forEach(meal -> {
             caloriesSumByDate.merge(meal.getDate(), meal.getCalories(), Integer::sum);
-            if (TimeUtil.isBetweenInclusive(meal.getTime(), startTime, endTime)) {
+            if (DateTimeUtil.isBetween(meal.getTime(), startTime, endTime)) {
                 tasks.add(() -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay));
             }
         });
@@ -135,43 +139,43 @@ public class MealsUtil {
                 .flatMap(dayMeals -> {
                     boolean excess = dayMeals.stream().mapToInt(Meal::getCalories).sum() > caloriesPerDay;
                     return dayMeals.stream().filter(meal ->
-                            TimeUtil.isBetweenInclusive(meal.getTime(), startTime, endTime))
+                            DateTimeUtil.isBetween(meal.getTime(), startTime, endTime))
                             .map(meal -> createTo(meal, excess));
                 }).collect(toList());
     }
 
-    private static List<MealTo> getFilteredByCollector(List<Meal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
-        final class Aggregate {
-            private final List<Meal> dailyMeals = new ArrayList<>();
-            private int dailySumOfCalories;
-
-            private void accumulate(Meal meal) {
-                dailySumOfCalories += meal.getCalories();
-                if (TimeUtil.isBetweenInclusive(meal.getTime(), startTime, endTime)) {
-                    dailyMeals.add(meal);
-                }
-            }
-
-            // never invoked if the upstream is sequential
-            private Aggregate combine(Aggregate that) {
-                this.dailySumOfCalories += that.dailySumOfCalories;
-                this.dailyMeals.addAll(that.dailyMeals);
-                return this;
-            }
-
-            private Stream<MealTo> finisher() {
-                final boolean excess = dailySumOfCalories > caloriesPerDay;
-                return dailyMeals.stream().map(meal -> createTo(meal, excess));
-            }
-        }
-
-        Collection<Stream<MealTo>> values = meals.stream()
-                .collect(Collectors.groupingBy(Meal::getDate,
-                        Collector.of(Aggregate::new, Aggregate::accumulate, Aggregate::combine, Aggregate::finisher))
-                ).values();
-
-        return values.stream().flatMap(identity()).collect(toList());
-    }
+//    private static List<MealTo> getFilteredByCollector(List<Meal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+//        final class Aggregate {
+//            private final List<Meal> dailyMeals = new ArrayList<>();
+//            private int dailySumOfCalories;
+//
+//            private void accumulate(Meal meal) {
+//                dailySumOfCalories += meal.getCalories();
+//                if (DateTimeUtil.isBetween(meal.getTime(), startTime, endTime)) {
+//                    dailyMeals.add(meal);
+//                }
+//            }
+//
+//            // never invoked if the upstream is sequential
+//            private Aggregate combine(Aggregate that) {
+//                this.dailySumOfCalories += that.dailySumOfCalories;
+//                this.dailyMeals.addAll(that.dailyMeals);
+//                return this;
+//            }
+//
+//            private Stream<MealTo> finisher() {
+//                final boolean excess = dailySumOfCalories > caloriesPerDay;
+//                return dailyMeals.stream().map(meal -> createTo(meal, excess));
+//            }
+//        }
+//
+//        Collection<Stream<MealTo>> values = meals.stream()
+//                .collect(Collectors.groupingBy(Meal::getDate,
+//                        Collector.of(Aggregate::new, Aggregate::accumulate, Aggregate::combine, Aggregate::finisher))
+//                ).values();
+//
+//        return values.stream().flatMap(identity()).collect(toList());
+//    }
 
     private static MealTo createTo(Meal meal, boolean excess) {
         return new MealTo(meal.getDateTime(), meal.getDescription(), meal.getCalories(), excess);
